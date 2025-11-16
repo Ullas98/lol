@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>sixtytoo — links</title>
-  <meta name="description" content="Profile links" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -21,15 +20,13 @@
       background:var(--bg);
       overflow:hidden;
     }
-    /* canvas sits behind everything */
     canvas#bg{
       position:fixed;
       inset:0;
       width:100%;
       height:100%;
-      display:block;
       z-index:-2;
-      pointer-events:none; /* allow pointer events to hit window/card but we still listen on window */
+      pointer-events:none;
     }
     .fog{
       position:fixed;
@@ -70,95 +67,95 @@
   </main>
 
   <script>
-    // year
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // canvas and context
     const canvas = document.getElementById('bg');
     const ctx = canvas.getContext('2d', { alpha: true });
     let w = canvas.width = innerWidth;
     let h = canvas.height = innerHeight;
 
-    // pointer state (works for mouse & touch)
-    const pointer = { x: w/2, y: h/2, active: false };
+    // pointer state (works even when over card)
+    const pointer = { x: w/2, y: h/2, active: false, lastMove: 0 };
 
-    // particle list
-    let particles = [];
-
-    // helpers
+    // small helper
     const rand = (a,b) => Math.random()*(b-a)+a;
 
-    // listen on window so pointer is tracked everywhere (card won't block)
-    function handlePointer(e){
-      pointer.active = true;
-      const clientX = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? pointer.x;
-      const clientY = e.clientY ?? (e.touches && e.touches[0] && e.touches[0].clientY) ?? pointer.y;
-      pointer.x = clientX;
-      pointer.y = clientY;
-    }
-    window.addEventListener('pointermove', handlePointer, { passive:true });
-    window.addEventListener('mousemove', handlePointer, { passive:true });
-    window.addEventListener('touchmove', handlePointer, { passive:true });
+    // particles array
+    let particles = [];
 
-    window.addEventListener('pointerdown', ()=> pointer.active = true);
-    window.addEventListener('pointerup', ()=> pointer.active = false);
-    window.addEventListener('mouseleave', ()=> pointer.active = false);
-
-    // resize
     window.addEventListener('resize', ()=>{
       w = canvas.width = innerWidth;
       h = canvas.height = innerHeight;
       resetParticles();
     });
 
-    // particle class
-    class P {
+    // track pointer on window so card won't block it
+    function onPointer(e){
+      pointer.x = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? pointer.x;
+      pointer.y = e.clientY ?? (e.touches && e.touches[0] && e.touches[0].clientY) ?? pointer.y;
+      pointer.active = true;
+      pointer.lastMove = performance.now();
+    }
+    window.addEventListener('pointermove', onPointer, { passive:true });
+    window.addEventListener('mousemove', onPointer, { passive:true });
+    window.addEventListener('touchmove', onPointer, { passive:true });
+
+    // if no movement for 1.2s consider pointer inactive (so idle drift returns)
+    function checkPointerIdle(){
+      const now = performance.now();
+      if(now - pointer.lastMove > 1200) pointer.active = false;
+      requestAnimationFrame(checkPointerIdle);
+    }
+    checkPointerIdle();
+
+    class Particle{
       constructor(){
-        this.reset(true);
-      }
-      reset(init=false){
         this.x = rand(0,w);
         this.y = rand(0,h);
-        this.vx = rand(-0.4,0.4);
-        this.vy = rand(-0.4,0.4);
+        // slow default drift velocity
+        this.vx = rand(-0.25, 0.25);
+        this.vy = rand(-0.25, 0.25);
         this.r = rand(1.4,3.6);
         this.baseR = this.r;
         this.h = rand(190,260);
         this.a = rand(0.35,0.9);
       }
       update(){
-        // repel from pointer when active
+        // idle slow movement: gentle jitter added every frame
+        this.vx += rand(-0.01, 0.01);
+        this.vy += rand(-0.01, 0.01);
+
+        // clamp small speeds so drift remains slow
+        this.vx = Math.max(Math.min(this.vx, 0.8), -0.8);
+        this.vy = Math.max(Math.min(this.vy, 0.8), -0.8);
+
+        // repel from pointer if active
         if(pointer.active){
           const dx = this.x - pointer.x;
           const dy = this.y - pointer.y;
-          const d2 = dx*dx + dy*dy;
-          const dist = Math.sqrt(d2) || 0.0001;
-          const zone = 140; // repel radius
+          const dist = Math.sqrt(dx*dx + dy*dy) || 0.0001;
+          const zone = 140;
           if(dist < zone){
-            const force = (zone - dist)/zone; // 0..1
-            const strength = 2.6 * force;     // tweak this to change speed
+            const force = (zone - dist)/zone;       // 0..1
+            const strength = 2.4 * force;           // repulsion multiplier
             this.vx += (dx/dist) * strength;
             this.vy += (dy/dist) * strength;
             // size bump
-            this.r = Math.min(this.baseR * 2.6, this.r + force * 1.1);
+            this.r = Math.min(this.baseR * 2.4, this.r + force * 0.9);
           } else {
-            this.r += (this.baseR - this.r) * 0.06;
-            // gentle wander if far
-            this.vx += rand(-0.01,0.01);
-            this.vy += rand(-0.01,0.01);
+            // slowly return to base size
+            this.r += (this.baseR - this.r) * 0.04;
           }
         } else {
-          // idle drift
-          this.vx += rand(-0.01,0.01);
-          this.vy += rand(-0.01,0.01);
-          this.r += (this.baseR - this.r) * 0.06;
+          // when pointer not active, slowly return size
+          this.r += (this.baseR - this.r) * 0.04;
         }
 
-        // apply velocity and damping
+        // apply velocity and mild damping
         this.x += this.vx;
         this.y += this.vy;
-        this.vx *= 0.92;
-        this.vy *= 0.92;
+        this.vx *= 0.96;
+        this.vy *= 0.96;
 
         // wrap edges
         if(this.x < -10) this.x = w + 10;
@@ -169,23 +166,22 @@
       draw(){
         ctx.beginPath();
         ctx.fillStyle = `hsla(${this.h},85%,60%,${this.a})`;
-        ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
         ctx.fill();
       }
     }
 
     function resetParticles(){
-      const count = Math.max(20, Math.round((w*h)/95000));
+      const count = Math.max(20, Math.round((w*h)/90000));
       particles = [];
-      for(let i=0;i<count;i++) particles.push(new P());
-      // on low-power devices reduce
+      for(let i=0;i<count;i++) particles.push(new Particle());
+      // lower count on weak devices
       if(navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2){
-        particles = particles.slice(0, Math.max(12, Math.round(particles.length*0.6)));
+        particles = particles.slice(0, Math.max(12, Math.round(particles.length * 0.6)));
       }
     }
     resetParticles();
 
-    // connect lines
     function connect(){
       for(let i=0;i<particles.length;i++){
         const a = particles[i];
@@ -197,7 +193,7 @@
           if(d < 110){
             const t = 1 - d/110;
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(150,180,255,${0.05 + 0.18 * t})`;
+            ctx.strokeStyle = `rgba(150,180,255,${0.05 + t*0.18})`;
             ctx.lineWidth = 1 * t;
             ctx.moveTo(a.x,a.y);
             ctx.lineTo(b.x,b.y);
@@ -207,11 +203,10 @@
       }
     }
 
-    // animation
     function animate(){
       ctx.clearRect(0,0,w,h);
 
-      // subtle background
+      // subtle gradient background on canvas
       const g = ctx.createLinearGradient(0,0,w,h);
       g.addColorStop(0,'rgba(10,15,25,0.16)');
       g.addColorStop(1,'rgba(20,10,35,0.12)');
