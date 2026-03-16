@@ -71,7 +71,7 @@ opacity:.6;
 margin-bottom:6px;
 }
 
-.token, .copyItem{
+.token{
 background:#101010;
 border:1px solid #00eaff33;
 border-radius:12px;
@@ -81,16 +81,31 @@ font-size:13px;
 word-break:break-all;
 cursor:pointer;
 transition:all .3s ease;
-animation:fade .25s;
 }
 
-.token:hover, .copyItem:hover{
+.token:hover{
 box-shadow:0 0 12px #00eaff44;
 }
 
 .token.done{
 border:1px solid #00ff9c55;
 box-shadow:0 0 10px #00ff9c33;
+}
+
+.copyBox{
+background:#101010;
+border:1px solid #00eaff33;
+border-radius:12px;
+padding:14px;
+margin-bottom:12px;
+font-size:13px;
+cursor:pointer;
+white-space:pre-line;
+transition:.3s;
+}
+
+.copyBox:hover{
+box-shadow:0 0 12px #00eaff44;
 }
 
 @keyframes fade{
@@ -104,12 +119,12 @@ transform:translateY(0);
 }
 }
 
-</style></head><body><h1>Token Manager</h1><!-- ========================= --><!-- TEXT BOX 1 --><!-- EDIT CONTENT BELOW --><!-- ========================= --><div class="section">
+</style></head><body><h1>Token Manager</h1><!-- TEXT BOX 1 --><div class="section">
 <h2>Text Box 1</h2>
-<div id="box1"></div>
-</div><!-- ========================= --><!-- TEXT BOX 2 --><!-- EDIT CONTENT BELOW --><!-- ========================= --><div class="section">
+<div id="box1" class="copyBox"></div>
+</div><!-- TEXT BOX 2 --><div class="section">
 <h2>Text Box 2</h2>
-<div id="box2"></div>
+<div id="box2" class="copyBox"></div>
 </div><textarea id="input" placeholder="paste tokens (one per line)"></textarea><button onclick="addTokens()">Add Tokens</button>
 
 <div class="section">
@@ -122,50 +137,62 @@ transform:translateY(0);
 <div id="done"></div>
 </div><script>
 
-/* ========================= */
 /* EDIT YOUR TEXT HERE */
-/* EACH NEW LINE = NEW COPY ITEM */
-/* ========================= */
 
-const textBox1 = `
-nsfw,porn,18+,ome,fagata
-`
+const textBox1 = `nsfw,porn,18+,ome,fagata`
 
-const textBox2 = `
-🎅╭ ・ ───・✦ ･ ✨ ･✦・──・╮
+const textBox2 = `🎅╭ ・ ───・✦ ･ ✨ ･✦・──・╮
 ﹕🔞 》Najlepsze darmowe nagie zdjęcia
 ﹕😈 》 Ponad 100 filmów / treści publikowanych codziennie
 ﹕💋 》CODZIENNE NOWE MATERIAŁY
 ﹕🔒 》Nie wymaga weryfikacji ani żadnych danych!
 ﹕👅 》Best Premium NSFW
-﹕╰――・₊💖Dołącz teraz 💦
-`
+﹕╰――・₊💖Dołącz teraz 💦`
 
-/* ========================= */
+/* ================= */
 
-let available = 0
-let done = 0
+document.getElementById("box1").innerText=textBox1
+document.getElementById("box2").innerText=textBox2
+
+function copyBlock(text){
+
+navigator.clipboard.writeText(text)
+
+}
+
+document.getElementById("box1").onclick=function(){
+copyBlock(textBox1)
+}
+
+document.getElementById("box2").onclick=function(){
+copyBlock(textBox2)
+}
+
+let available=0
+let done=0
 
 function updateCounters(){
-document.getElementById("availableCount").innerText = available + " tokens"
-document.getElementById("doneCount").innerText = done + " tokens"
+
+document.getElementById("availableCount").innerText=available+" tokens"
+document.getElementById("doneCount").innerText=done+" tokens"
+
 }
 
 function addTokens(){
 
-let lines = document.getElementById("input").value.split("\n")
+let lines=document.getElementById("input").value.split("\n")
 
 lines.forEach(token=>{
 
-token = token.trim()
+token=token.trim()
 
-if(token === "") return
+if(token==="") return
 
-let div = document.createElement("div")
-div.className = "token"
-div.innerText = token
+let div=document.createElement("div")
+div.className="token"
+div.innerText=token
 
-div.onclick = function(){
+div.onclick=function(){
 
 navigator.clipboard.writeText(token)
 
@@ -186,55 +213,12 @@ available++
 
 })
 
-document.getElementById("input").value = ""
+document.getElementById("input").value=""
 
 updateCounters()
 
 }
 
-function copyText(el){
-
-navigator.clipboard.writeText(el.innerText)
-
-el.style.boxShadow="0 0 15px #00eaff"
-
-setTimeout(()=>{
-el.style.boxShadow=""
-},250)
-
-}
-
-function loadCopyBoxes(){
-
-textBox1.split("\n").forEach(line=>{
-line=line.trim()
-if(line==="") return
-
-let div=document.createElement("div")
-div.className="copyItem"
-div.innerText=line
-div.onclick=function(){copyText(div)}
-
-document.getElementById("box1").appendChild(div)
-
-})
-
-textBox2.split("\n").forEach(line=>{
-line=line.trim()
-if(line==="") return
-
-let div=document.createElement("div")
-div.className="copyItem"
-div.innerText=line
-div.onclick=function(){copyText(div)}
-
-document.getElementById("box2").appendChild(div)
-
-})
-
-}
-
-loadCopyBoxes()
 updateCounters()
 
 </script></body>
